@@ -1,0 +1,52 @@
+name: Build Debug (remote-control)
+
+on:
+  push:
+    branches:
+      - remote-control
+
+jobs:
+  Android:
+    name: Android Debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+        with:
+          ref: remote-control
+
+      - name: Setup Env
+        uses: ./.github/actions/setup
+
+      - name: Build Debug APK
+        env:
+          DISABLE_SVG: 1
+        shell: bash
+        run: |
+          cd android
+          # debug build uses debug.keystore (auto-generated), no secrets needed
+          ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      - name: List APK outputs
+        shell: bash
+        run: |
+          echo "=== Build output ==="
+          find android/app/build/outputs -name "*.apk" -ls
+
+      - name: Upload arm64-v8a APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lx-music-mobile-remote-control-arm64-v8a
+          path: android/app/build/outputs/apk/debug/lx-music-mobile-v*-arm64-v8a.apk
+
+      - name: Upload armeabi-v7a APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lx-music-mobile-remote-control-armeabi-v7a
+          path: android/app/build/outputs/apk/debug/*armeabi-v7a.apk
+
+      - name: Upload universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lx-music-mobile-remote-control-universal
+          path: android/app/build/outputs/apk/debug/*universal.apk
