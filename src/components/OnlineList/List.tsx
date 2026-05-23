@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react'
+import { useMemo, useRef, useState, forwardRef, useImperativeHandle, useCallback, useEffect } from 'react'
 import { FlatList, type FlatListProps, RefreshControl, View } from 'react-native'
 
 // import { useMusicList } from '@/store/list/hook'
@@ -13,6 +13,7 @@ import { useI18n } from '@/lang'
 import Text from '@/components/common/Text'
 import { handlePlay } from './listAction'
 import { useSettingValue } from '@/store/setting/hook'
+import { onKeyEvent } from '@/utils/remoteControl'
 
 type FlatListType = FlatListProps<LX.Music.MusicInfoOnline>
 
@@ -179,11 +180,62 @@ const List = forwardRef<ListType, ListProps>(({
     onLoadMore()
   }
 
+  // ---- DPAD / Remote Focus Management ----
+  const [focusIndex, setFocusIndex] = useState(-1)
+  const focusIndexRef = useRef(-1)
+
+  const handleKeyEvent = useCallback((event: import('@/utils/remoteControl').RemoteKeyEvent): boolean => {
+    if (isMultiSelectModeRef.current || !currentList.length) return false
+
+    const handleDpad = (newIdx: number) => {
+      if (newIdx < 0 || newIdx >= currentList.length) return
+      focusIndexRef.current = newIdx
+      setFocusIndex(newIdx)
+      try {
+        flatListRef.current?.scrollToIndex({
+          index: Math.floor(newIdx / (rowInfo.current.rowNum ?? 1)),
+          viewPosition: 0.3,
+          animated: true,
+        })
+      } catch {}
+    }
+
+    switch (event.keyName) {
+      case 'DPAD_DOWN':
+        handleDpad(focusIndexRef.current + (rowInfo.current.rowNum ?? 1))
+        return true
+      case 'DPAD_UP':
+        handleDpad(focusIndexRef.current - (rowInfo.current.rowNum ?? 1))
+        return true
+      case 'DPAD_LEFT':
+        handleDpad(focusIndexRef.current - 1)
+        return true
+      case 'DPAD_RIGHT':
+        handleDpad(focusIndexRef.current + 1)
+        return true
+      case 'DPAD_CENTER':
+      case 'ENTER':
+        if (focusIndexRef.current >= 0 && focusIndexRef.current < currentList.length) {
+          handlePress(currentList[focusIndexRef.current], focusIndexRef.current)
+        }
+        return true
+      default:
+        return false
+    }
+  }, [currentList])
+
+  useEffect(() => {
+    const unsub = onKeyEvent(handleKeyEvent)
+    return unsub
+  }, [handleKeyEvent])
+  // ---- end Remote Focus ----
+
 
   const renderItem: FlatListType['renderItem'] = ({ item, index }) => (
     <ListItem
       item={item}
       index={index}
+      focused={focusIndex === index}
       showSource={showSource}
       onPress={handlePress}
       onLongPress={handleLongPress}
