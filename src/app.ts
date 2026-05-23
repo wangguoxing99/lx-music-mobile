@@ -7,9 +7,13 @@ import { exitApp } from './utils/nativeModules/utils'
 import { windowSizeTools } from './utils/windowSizeTools'
 import { listenLaunchEvent } from './navigation/regLaunchedEvent'
 import { tipDialog } from './utils/tools'
+import { startListening } from './utils/remoteControl'
 
 console.log('starting app...')
 listenLaunchEvent()
+
+// Initialize remote control listener for DPAD / media keys
+startListening()
 
 void Promise.all([getFontSize(), windowSizeTools.init()]).then(async([fontSize]) => {
   global.lx.fontSize = fontSize
